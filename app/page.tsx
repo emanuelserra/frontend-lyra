@@ -1,65 +1,74 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
+export default function LandingPage() {
+  const router = useRouter();
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main
+      aria-label="Landing page Lyra"
+      className="relative flex items-center justify-center min-h-screen overflow-hidden"
+    >
+      {/* Sfondo animato */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-gradient-to-tr from-white via-[var(--bordeaux)] to-[var(--oro)] bg-[length:200%_200%] animate-gradient-move"
+      />
+
+      {/* Pannello principale */}
+      <div
+        className={`relative z-10 flex flex-col items-center text-center px-8 sm:px-10 py-10 sm:py-12 rounded-3xl shadow-2xl backdrop-blur-xl bg-white/25 border border-white/20 transition-all duration-700 ease-out transform ${
+          visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+        }`}
+        role="region"
+        aria-labelledby="lyra-heading"
+      >
+        {/* Logo */}
+        <div className="mb-6 overflow-hidden rounded-xl animate-logo-glow">
+          <Image
+            src="/logo2.png"
+            alt="Logo della piattaforma Lyra"
+            width={180}
+            height={100}
+            className="object-contain rounded-xl"
+            priority
+          />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        {/* Titolo */}
+        <h1 id="lyra-heading" className="text-4xl md:text-5xl font-bold mb-3 text-white drop-shadow-lg">
+          Benvenuto su Lyra
+        </h1>
+
+        {/* Sottotitolo */}
+        <p className="text-lg text-white/90 mb-8 max-w-md drop-shadow-md">
+          La piattaforma intelligente per la gestione scolastica moderna.
+        </p>
+
+        {/* Bottone */}
+        <button
+          onClick={() => router.push("/login")}
+          aria-label="Vai al login di Lyra"
+          className="px-8 py-3 bg-[var(--bordeaux)] hover:bg-[#6B0F27] text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-[rgba(184,139,74,0.18)]"
+        >
+          Vai al Login
+        </button>
+
+        {/* Footer */}
+        <p className="text-sm text-white/50 mt-8 drop-shadow-sm">
+          © {new Date().getFullYear()} Lyra. Tutti i diritti riservati.
+        </p>
+      </div>
+    </main>
   );
 }
+

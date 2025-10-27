@@ -1,8 +1,35 @@
 @import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes gradient-move {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient-move {
+  background-size: 300% 300%;
+  animation: gradient-move 25s ease-in-out infinite;
+}
+
+@keyframes logo-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(184,139,74,0.35); }
+  50% { box-shadow: 0 0 36px rgba(184,139,74,0.55); }
+}
+
+.animate-logo-glow {
+  animation: logo-glow 2.5s ease-in-out infinite;
+}
+
+
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bordeaux: #5B0E1B;
+  --oro: #B88B4A;
+  --lyra-bg-glass: rgba(255,255,255,0.20);
+  --lyra-border-glass: rgba(255,255,255,0.14);
 }
 
 @theme inline {
