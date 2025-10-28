@@ -1,22 +1,29 @@
-import { ReactNode } from 'react'
-import { motion } from 'framer-motion'
+import { ReactNode } from "react";
+import { motion } from "framer-motion";
 
 interface CardProps {
-  title: string
-  children: ReactNode
+  title: string;
+  children: ReactNode;
 }
 
 export default function Card({ title, children }: CardProps) {
   return (
     <motion.div
-      className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow hover:shadow-lg transition-all duration-300"
+      className="p-4 rounded-2xl shadow hover:shadow-lg transition-all duration-300"
+      style={{
+        backgroundColor: "var(--card)",
+        color: "var(--card-foreground)",
+        transition: "background-color 0.25s ease, color 0.25s ease",
+      }}
       whileHover={{ scale: 1.03 }}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">{title}</h3>
+      <h3 className="text-lg font-semibold mb-3" style={{ color: "var(--card-foreground)" }}>
+        {title}
+      </h3>
       <div>{children}</div>
     </motion.div>
-  )
+  );
 }

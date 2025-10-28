@@ -20,7 +20,14 @@ export default function DashboardFeatures() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: idx * 0.1 }}
           className="flex flex-col items-center justify-center bg-white dark:bg-gray-800 p-4 rounded-xl shadow"
+          style={{
+            backgroundColor: "var(--card)",            // usa var per light
+            color: "var(--card-foreground)",           // testo in base al tema
+            boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+            transition: "background-color .2s ease, color .2s ease, transform .12s ease",
+          }}
         >
+
           <div className="text-3xl text-blue-600 dark:text-blue-400 mb-2">{feature.icon}</div>
           <p className="text-sm text-gray-700 dark:text-gray-200 text-center">{feature.title}</p>
         </motion.div>

@@ -1,27 +1,32 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Moon, Sun } from 'lucide-react'
 
 export default function Navbar() {
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(
+    typeof window !== 'undefined' && localStorage.theme === 'dark'
+  )
 
-  const toggleDark = () => {
-    document.documentElement.classList.toggle('dark')
-    setDarkMode(!darkMode)
-  }
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark')
+      localStorage.theme = 'dark'
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.theme = 'light'
+    }
+  }, [darkMode])
 
   return (
-    <header className="flex items-center justify-between px-6 py-4 bg-white dark:bg-gray-800 shadow">
-      <h1 className="text-xl font-semibold text-gray-800 dark:text-white">Dashboard</h1>
-      <div className="flex items-center gap-4">
-        <button
-          onClick={toggleDark}
-          className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-        >
-          {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-        </button>
-      </div>
+    <header className="flex items-center justify-between px-6 py-4 bg-[var(--card)] text-[var(--card-foreground)] shadow">
+      <h1 className="text-xl font-semibold">Dashboard</h1>
+      <button
+        onClick={() => setDarkMode(!darkMode)}
+        className="p-2 rounded-full hover:bg-[var(--muted)] transition"
+      >
+        {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+      </button>
     </header>
   )
 }

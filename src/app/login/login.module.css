@@ -1,0 +1,15 @@
+.background {
+  position:absolute; inset:0; z-index:-1;
+  background: linear-gradient(135deg, #F8F4F0, var(--bordeaux), var(--oro));
+  background-size: 300% 300%;
+  animation: gradient-move 25s ease-in-out infinite;
+}
+.formCard {
+  background: rgba(255,255,255,0.20);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.14);
+  padding: 1.25rem;
+  width: 20rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}

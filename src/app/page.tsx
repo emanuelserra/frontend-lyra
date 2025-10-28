@@ -1,54 +1,75 @@
-'use client'
+"use client";
 
-import Sidebar from './components/Sidebar'
-import Navbar from './components/Navbar'
-import DashboardFeatures from './components/DashboardFeatures'
-import Card from './components/Card'
-import StudentsTable from './components/StudentsTable'
-import { motion } from 'framer-motion'
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import styles from "./landing.module.css";
 
-export default function HomePage() {
+export default function LandingPage() {
+  const router = useRouter();
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <motion.div
-      className="flex min-h-screen bg-gray-100 dark:bg-gray-900"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.6 }}
+    <main
+      aria-label="Landing page Lyra"
+      className="relative flex items-center justify-center min-h-screen overflow-hidden"
     >
-      <Sidebar />
+      {/* Sfondo animato */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-gradient-to-tr from-white via-[var(--bordeaux)] to-[var(--oro)] bg-[length:200%_200%] animate-gradient-move"
+      />
 
-      <div className="flex-1 flex flex-col">
-        <Navbar />
+      {/* Pannello principale */}
+      <div
+        className={`relative z-10 flex flex-col items-center text-center px-8 sm:px-10 py-10 sm:py-12 rounded-3xl shadow-2xl backdrop-blur-xl bg-white/25 border border-white/20 transition-all duration-700 ease-out transform ${
+          visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+        }`}
+        role="region"
+        aria-labelledby="lyra-heading"
+      >
+        {/* Logo */}
+        <div className="mb-6 overflow-hidden rounded-xl animate-logo-glow">
+          <Image
+            src="/logo.png"
+            alt="Logo della piattaforma Lyra"
+            width={180}
+            height={100}
+            className="object-contain rounded-xl"
+            priority
+          />
+        </div>
 
-        <motion.main
-          className="p-6 flex-1 overflow-auto space-y-6"
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+        {/* Titolo */}
+        <h1 id="lyra-heading" className="text-4xl md:text-5xl font-bold mb-3 text-white drop-shadow-lg">
+          Benvenuto su Lyra
+        </h1>
+
+        {/* Sottotitolo */}
+        <p className="text-lg text-white/90 mb-8 max-w-md drop-shadow-md">
+          La piattaforma intelligente per la gestione scolastica moderna.
+        </p>
+
+        {/* Bottone */}
+        <button
+          onClick={() => router.push("/login")}
+          aria-label="Vai al login di Lyra"
+          className="px-8 py-3 bg-[var(--bordeaux)] hover:bg-[#6B0F27] text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-[rgba(184,139,74,0.18)]"
         >
-          <DashboardFeatures />
+          Vai al Login
+        </button>
 
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-3 gap-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Card title="Studenti iscritti"><div className="text-2xl font-bold">1200</div></Card>
-            <Card title="Corsi attivi"><div className="text-2xl font-bold">25</div></Card>
-            <Card title="Docenti"><div className="text-2xl font-bold">40</div></Card>
-          </motion.div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card title="Elenco studenti (anteprima)">
-              <StudentsTable />
-            </Card>
-            <Card title="Prossimi eventi">
-              <p>Calendario, scadenze, ecc.</p>
-            </Card>
-          </div>
-        </motion.main>
+        {/* Footer */}
+        <p className="text-sm text-white/50 mt-8 drop-shadow-sm">
+          © {new Date().getFullYear()} Lyra. Tutti i diritti riservati.
+        </p>
       </div>
-    </motion.div>
-  )
+    </main>
+  );
 }
+
