@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Calendar } from "../components/ui/calendar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import WeekModal from "./WeekModal";
 
 export default function CalendarMonth() {

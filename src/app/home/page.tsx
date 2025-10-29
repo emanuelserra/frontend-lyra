@@ -15,7 +15,6 @@ export default function HomePage() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
     >
-      <Sidebar />
 
       <div className="flex-1 flex flex-col">
         <Navbar />
