@@ -52,7 +52,7 @@ export default function PresenceDayCard({
             case "finished":
                 return { label: "Presenza completata", color: "bg-blue-500 text-white hover:bg-blue-600" };
             default:
-                return { label: "Segna presenza", color: "border border-gray-300 text-gray-700" };
+                return { label: "Segna presenza", color: "border border-white-300 text-white-700" };
         }
     })();
 
