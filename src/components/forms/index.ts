@@ -1,0 +1,7 @@
+export { default as StudentForm } from './StudentForm'
+export { default as UserForm } from './UserForm'
+export { default as ProfessorForm } from './ProfessorForm'
+export { default as CourseForm } from './CourseForm'
+export { default as SubjectForm } from './SubjectForm'
+export { default as AttendanceForm } from './AttendanceForm'
+export { LessonForm } from './LessonForm'

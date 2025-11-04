@@ -3,12 +3,14 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import styles from "./login.module.css";
+import { authService } from "@/services/auth.service";
 
 export default function LoginPage() {
   const [visible, setVisible] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -16,15 +18,20 @@ export default function LoginPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setError("");
 
-    // ESEMPIO: login statico
-    if (email === "test@email.com" && password === "password") {
-      localStorage.setItem("loggedIn", "true");
+    try {
+      await authService.login({ email, password });
       router.push("/home");
-    } else {
-      alert("Email o password errati");
+    } catch (err: any) {
+      console.error("Login error:", err);
+      const errorMessage = err.response?.data?.message || "Email o password errati";
+      setError(Array.isArray(errorMessage) ? errorMessage.join(", ") : errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -63,12 +70,19 @@ export default function LoginPage() {
             Login
           </h2>
 
+          {error && (
+            <div className="bg-red-500/80 text-white text-sm p-2 rounded mb-3 text-center">
+              {error}
+            </div>
+          )}
+
           <input
             type="email"
             placeholder="Email"
             className="border border-white/40 bg-white/40 text-stone-900 p-2 w-full mb-3 rounded placeholder-stone-700 focus:outline-none focus:ring-2 focus:ring-[var(--oro)]"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
             required
           />
 
@@ -78,14 +92,16 @@ export default function LoginPage() {
             className="border border-white/40 bg-white/40 text-stone-900 p-2 w-full mb-4 rounded placeholder-stone-700 focus:outline-none focus:ring-2 focus:ring-[var(--oro)]"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
             required
           />
 
           <button
             type="submit"
-            className="bg-[var(--bordeaux)] hover:bg-[#6B0F27] text-white p-2 w-full rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+            disabled={loading}
+            className="bg-[var(--bordeaux)] hover:bg-[#6B0F27] text-white p-2 w-full rounded-lg shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Accedi
+            {loading ? "Accesso in corso..." : "Accedi"}
           </button>
         </form>
       </div>

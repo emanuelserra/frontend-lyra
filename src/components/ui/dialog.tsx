@@ -31,3 +31,5 @@ export const DialogHeader = ({ children }: { children: React.ReactNode }) => (
 );
 
 export const DialogTitle = DialogPrimitive.Title;
+
+export const DialogDescription = DialogPrimitive.Description;
