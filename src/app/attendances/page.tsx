@@ -9,6 +9,7 @@ import { ProtectedRoute, DataTable } from '@/components/shared'
 import type { Column } from '@/components/shared'
 import { AttendanceForm } from '@/components/forms'
 import { Sidebar, Navbar } from '@/components/layout'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import {
@@ -113,11 +114,36 @@ function AttendancesPage() {
     }
   }
 
-  function handleSelectLesson(lessonId: string) {
+  async function handleSelectLesson(lessonId: string) {
     const lesson = lessons.find(l => l.id === parseInt(lessonId))
     if (lesson) {
       setSelectedLesson(lesson)
+
+      try {
+        const existingAttendances = await attendanceService.getAttendancesByLesson(parseInt(lessonId))
+        if (existingAttendances.length > 0) {
+          setAttendances(existingAttendances)
+        }
+      } catch (error) {
+        console.error('Error fetching attendances:', error)
+      }
+
       setIsDialogOpen(true)
+    }
+  }
+
+  async function handleConfirmAttendance(attendanceId: number) {
+    try {
+      await attendanceService.confirmAttendance(attendanceId)
+      toast.success('Presenza confermata')
+
+      if (selectedLesson) {
+        const updatedAttendances = await attendanceService.getAttendancesByLesson(selectedLesson.id)
+        setAttendances(updatedAttendances)
+      }
+    } catch (error: any) {
+      console.error('Error confirming attendance:', error)
+      toast.error(error.response?.data?.message || 'Errore nella conferma')
     }
   }
 
@@ -169,6 +195,15 @@ function AttendancesPage() {
             <Badge variant="default">Sì</Badge>
           ) : (
             <Badge variant="secondary">No</Badge>
+          ),
+      },
+      {
+        header: 'Confermata',
+        accessor: row =>
+          row.confirmed ? (
+            <Badge variant="default">Confermata</Badge>
+          ) : (
+            <Badge variant="secondary">In attesa</Badge>
           ),
       },
       {
@@ -304,16 +339,68 @@ function AttendancesPage() {
                   </DialogDescription>
                 </DialogHeader>
                 {selectedLesson && (
-                  <AttendanceForm
-                    lesson_id={selectedLesson.id}
-                    courseId={selectedLesson.course?.id || 0}
-                    onSubmit={handleRegisterAttendances}
-                    onCancel={() => {
-                      setIsDialogOpen(false)
-                      setSelectedLesson(null)
-                    }}
-                    loading={formLoading}
-                  />
+                  attendances.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="text-sm text-gray-600 mb-4">
+                        <strong>{attendances.length}</strong> presenze registrate per questa lezione
+                      </div>
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {attendances.map(att => (
+                          <div
+                            key={att.id}
+                            className={`flex items-center justify-between p-3 border rounded-lg ${
+                              !att.confirmed ? 'bg-yellow-50 border-yellow-200' : 'bg-white'
+                            }`}
+                          >
+                            <div className="flex-1">
+                              <p className="font-medium">
+                                {att.student?.user?.first_name} {att.student?.user?.last_name}
+                              </p>
+                              <div className="flex gap-2 mt-1">
+                                {getStatusBadge(att.status)}
+                                {att.confirmed ? (
+                                  <Badge variant="default">Confermata</Badge>
+                                ) : (
+                                  <Badge variant="secondary">Da confermare</Badge>
+                                )}
+                              </div>
+                              {att.note && (
+                                <p className="text-xs text-gray-500 mt-1">Note: {att.note}</p>
+                              )}
+                            </div>
+                            {!att.confirmed && (
+                              <Button size="sm" onClick={() => handleConfirmAttendance(att.id)}>
+                                Conferma
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-end pt-4 border-t">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setIsDialogOpen(false)
+                            setSelectedLesson(null)
+                            setAttendances([])
+                          }}
+                        >
+                          Chiudi
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <AttendanceForm
+                      lesson_id={selectedLesson.id}
+                      courseId={selectedLesson.course?.id || 0}
+                      onSubmit={handleRegisterAttendances}
+                      onCancel={() => {
+                        setIsDialogOpen(false)
+                        setSelectedLesson(null)
+                      }}
+                      loading={formLoading}
+                    />
+                  )
                 )}
               </DialogContent>
             </Dialog>

@@ -6,6 +6,7 @@ export interface Attendance {
   student_id: number;
   status: 'present' | 'absent' | 'late' | 'early_exit';
   justified: boolean;
+  confirmed: boolean;
   note?: string;
   lesson?: {
     id: number;
@@ -74,6 +75,17 @@ class AttendanceService {
 
   async deleteAttendance(id: number): Promise<void> {
     await apiClient.delete(`/attendances/${id}`);
+  }
+
+  async selfMarkAttendance(lessonId: number, status: 'present' | 'late' | 'early_exit'): Promise<void> {
+    await apiClient.post('/attendances/self-mark', {
+      lesson_id: lessonId,
+      status,
+    });
+  }
+
+  async confirmAttendance(id: number): Promise<void> {
+    await apiClient.patch(`/attendances/${id}/confirm`);
   }
 }
 

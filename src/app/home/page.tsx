@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Sidebar, Navbar } from '@/components/layout'
 import { StatsCard, ProtectedRoute } from '@/components/shared'
+import AttendanceCalendar from '@/components/shared/AttendanceCalendar'
 import QuickActionsPanel from '@/components/dashboard/QuickActionsPanel'
 import UpcomingLessonsCard from '@/components/dashboard/UpcomingLessonsCard'
 import AlertsCard from '@/components/dashboard/AlertsCard'
@@ -129,16 +130,33 @@ function DashboardContent() {
           <QuickActionsPanel actions={quickActions} />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <UpcomingLessonsCard
-              lessons={lessons}
-              loading={dataLoading}
-              canRegisterAttendance={userRole === 'professor' || userRole === 'tutor'}
-              onRegister={(id) => console.log('Register attendance for lesson', id)}
-            />
-            <AlertsCard alerts={alerts} loading={dataLoading} />
+            {userRole === 'student' ? (
+              <div className="lg:col-span-2">
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h2 className="text-lg font-semibold mb-4">Calendario Presenze</h2>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Clicca su un giorno per vedere le lezioni e segnare la tua presenza.
+                    Il professore confermerà successivamente.
+                  </p>
+                  <AttendanceCalendar />
+                </div>
+              </div>
+            ) : (
+              <>
+                <UpcomingLessonsCard
+                  lessons={lessons}
+                  loading={dataLoading}
+                  canRegisterAttendance={userRole === 'professor' || userRole === 'tutor'}
+                  onRegister={(id) => console.log('Register attendance for lesson', id)}
+                />
+                <AlertsCard alerts={alerts} loading={dataLoading} />
+              </>
+            )}
           </div>
 
-          <RecentActivityCard activities={activities} loading={dataLoading} />
+          {userRole !== 'student' && (
+            <RecentActivityCard activities={activities} loading={dataLoading} />
+          )}
         </main>
       </div>
     </div>
