@@ -628,27 +628,37 @@ function SessionGradesEditor({
   }, [session.id, session.course_id]);
 
   const handleSave = async () => {
-    setSaving(true);
+  setSaving(true);
 
-    try {
-      const updates = Object.entries(grades).map(([studentId, grade]) => {
-        return api.post("/exam-results", {
-          exam_session_id: session.id,
-          student_id: Number(studentId),
-          grade: grade === "" ? null : Number(grade),
-        });
+  try {
+    const updates = Object.entries(grades).map(([studentId, grade]) => {
+      return api.post("/exam-results", {
+        exam_session_id: session.id,
+        student_id: Number(studentId),
+        grade: grade === "" ? null : Number(grade),
       });
+    });
 
-      await Promise.all(updates);
+    await Promise.all(updates);
 
-      alert("Voti salvati correttamente!");
-      onBack();
-    } catch {
-      alert("Errore nel salvataggio dei voti.");
-    } finally {
-      setSaving(false);
-    }
-  };
+    // 🔥 Ricarico i voti aggiornati senza uscire dalla pagina
+    const resultsRes = await api.get(`/exam-results?session=${session.id}`);
+
+    const gradeMap: Record<number, string> = {};
+    (resultsRes.data || []).forEach((r: any) => {
+      gradeMap[r.student_id] = r.grade?.toString() ?? "";
+    });
+
+    setGrades(gradeMap);
+
+    alert("Voti aggiornati correttamente!");
+  } catch {
+    alert("Errore nel salvataggio dei voti.");
+  } finally {
+    setSaving(false);
+  }
+};
+
 
   return (
     <div className="bg-white rounded-xl shadow p-6 space-y-4">
@@ -752,7 +762,7 @@ function StudentExamsView() {
         <header>
           <h1 className="text-3xl font-bold">Esami</h1>
           <p className="text-gray-500">
-            Qui puoi vedere i voti ottenuti nelle diverse sessioni d’esame.
+            Qui puoi vedere i voti ottenuti nelle diverse sessioni d'esame.
           </p>
         </header>
 

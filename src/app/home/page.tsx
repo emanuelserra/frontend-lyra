@@ -36,7 +36,7 @@ function getQuickActionsForRole(role: UserRole): QuickAction[] {
       return [
         { label: 'Crea Utente', icon: faUserPlus, href: '/users', color: 'blue', description: 'Aggiungi nuovo utente' },
         { label: 'Crea Corso', icon: faBookOpen, href: '/courses', color: 'green', description: 'Nuovo corso formativo' },
-        { label: 'Report', icon: faFileAlt, href: '/students', color: 'purple', description: 'Visualizza statistiche' },
+        { label: 'Report', icon: faFileAlt, href: '/reports', color: 'purple', description: 'Visualizza statistiche' },
       ]
     case 'professor':
       return [
