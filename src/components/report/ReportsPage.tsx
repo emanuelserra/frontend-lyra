@@ -26,6 +26,7 @@ import * as htmlToImage from "html-to-image";
 import * as XLSX from "xlsx";
 
 const REPORT_ENDPOINT = "/reports/grades";
+const ATTENDANCE_ENDPOINT = "/reports/attendance";
 
 type Subject = { id: number; name: string };
 
@@ -74,6 +75,40 @@ type FrontStats = {
   trend: { date: string; average: number }[];
 };
 
+/* -------- TIPI PER REPORT PRESENZE / ASSENZE -------- */
+
+type AttendanceStatus = "present" | "absent" | "late" | "early_exit";
+
+type AttendanceRow = {
+  id: number;
+  student_id: number;
+  student_name: string;
+  course_id: number | null;
+  course_name: string | null;
+  subject_id: number | null;
+  subject_name: string | null;
+  lesson_id: number | null;
+  lesson_date: string | null; // "YYYY-MM-DD" (come da service)
+  lesson_start_time: string | null;
+  lesson_end_time: string | null;
+  status: AttendanceStatus;
+  justified: boolean;
+  note: string | null;
+};
+
+type AttendanceStats = {
+  total: number;
+  presenceCount: number;
+  absenceCount: number;
+  justifiedAbsenceCount: number;
+  earlyExitCount: number;
+  lateCount: number;
+  presenceRate: number | null;
+  absenceRate: number | null;
+  distributionByStatus: { status: string; count: number }[];
+  trendByDate: { date: string; presenceRate: number }[];
+};
+
 export default function GradesReportPage() {
   const [reportType, setReportType] = useState<"grades" | "attendance">(
     "grades"
@@ -105,6 +140,23 @@ export default function GradesReportPage() {
     passRate: null,
     distribution: [],
     trend: [],
+  });
+
+  // ---- PRESENZE / ASSENZE ----
+  const [attendanceResults, setAttendanceResults] = useState<
+    AttendanceRow[]
+  >([]);
+  const [attendanceStats, setAttendanceStats] = useState<AttendanceStats>({
+    total: 0,
+    presenceCount: 0,
+    absenceCount: 0,
+    justifiedAbsenceCount: 0,
+    earlyExitCount: 0,
+    lateCount: 0,
+    presenceRate: null,
+    absenceRate: null,
+    distributionByStatus: [],
+    trendByDate: [],
   });
 
   const reportRef = useRef<HTMLDivElement | null>(null);
@@ -181,9 +233,9 @@ export default function GradesReportPage() {
       const variance =
         count > 1 && average != null
           ? numericGrades.reduce(
-              (acc, v) => acc + Math.pow(v - average, 2),
-              0
-            ) / count
+            (acc, v) => acc + Math.pow(v - average, 2),
+            0
+          ) / count
           : null;
 
       const min = count > 0 ? Math.min(...numericGrades) : null;
@@ -256,6 +308,99 @@ export default function GradesReportPage() {
     }
   };
 
+  /* ------------------- LOAD REPORT (PRESENZE / ASSENZE) ------------------- */
+
+  const loadAttendanceReport = async () => {
+    setLoading(true);
+
+    const params: any = {};
+    if (filters.course) params.course_id = Number(filters.course);
+    if (filters.subject) params.subject_id = Number(filters.subject);
+    if (filters.student) params.student_id = Number(filters.student);
+    if (filters.from) params.from_date = filters.from;
+    if (filters.to) params.to_date = filters.to;
+
+    try {
+      const res = await api.get(ATTENDANCE_ENDPOINT, { params });
+      const data = res.data || {};
+
+      const rows: AttendanceRow[] = data.attendance || [];
+
+      setAttendanceResults(rows);
+
+      // --- Statistiche lato front, derivate dalle righe ---
+
+      const total = rows.length;
+
+      const presenceCount = rows.filter((r) => r.status === "present")
+        .length;
+      const absenceCount = rows.filter((r) => r.status === "absent")
+        .length;
+      const earlyExitCount = rows.filter(
+        (r) => r.status === "early_exit"
+      ).length;
+      const lateCount = rows.filter((r) => r.status === "late").length;
+      const justifiedAbsenceCount = rows.filter(
+        (r) => r.status === "absent" && r.justified
+      ).length;
+
+      const presenceRate = total > 0 ? presenceCount / total : null;
+      const absenceRate = total > 0 ? absenceCount / total : null;
+
+      const distributionMap: Record<string, number> = {};
+      for (const r of rows) {
+        distributionMap[r.status] =
+          (distributionMap[r.status] ?? 0) + 1;
+      }
+      const distributionByStatus = Object.entries(distributionMap).map(
+        ([status, count]) => ({ status, count })
+      );
+
+      const trendMap: Record<
+        string,
+        { present: number; total: number }
+      > = {};
+      for (const r of rows) {
+        if (!r.lesson_date) continue;
+        const key = r.lesson_date; // "YYYY-MM-DD"
+
+        if (!trendMap[key]) {
+          trendMap[key] = { present: 0, total: 0 };
+        }
+
+        trendMap[key].total += 1;
+        if (r.status === "present") {
+          trendMap[key].present += 1;
+        }
+      }
+
+      const trendByDate = Object.entries(trendMap)
+        .map(([date, { present, total }]) => ({
+          date,
+          presenceRate: total > 0 ? present / total : 0,
+        }))
+        .sort(
+          (a, b) =>
+            new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+
+      setAttendanceStats({
+        total,
+        presenceCount,
+        absenceCount,
+        justifiedAbsenceCount,
+        earlyExitCount,
+        lateCount,
+        presenceRate,
+        absenceRate,
+        distributionByStatus,
+        trendByDate,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   /* ------------------- EXPORT PDF ------------------- */
 
   const handleExportPDF = async () => {
@@ -274,11 +419,15 @@ export default function GradesReportPage() {
     img.onload = () => {
       const imgHeight = (img.height * pdfWidth) / img.width;
       pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, imgHeight);
-      pdf.save("report-voti.pdf");
+      pdf.save(
+        reportType === "grades"
+          ? "report-voti.pdf"
+          : "report-presenze.pdf"
+      );
     };
   };
 
-  /* ------------------- EXPORT EXCEL ------------------- */
+  /* ------------------- EXPORT EXCEL (VOTI) ------------------- */
 
   const handleExportExcel = () => {
     if (!results.length) return;
@@ -321,13 +470,86 @@ export default function GradesReportPage() {
     XLSX.writeFile(wb, "report-voti.xlsx");
   };
 
+  /* ------------------- EXPORT EXCEL (PRESENZE) ------------------- */
+
+  const handleExportExcelAttendance = () => {
+    if (!attendanceResults.length) return;
+
+    const wb = XLSX.utils.book_new();
+
+    const attData = [
+      [
+        "Studente",
+        "Corso",
+        "Materia",
+        "Data",
+        "Ora inizio",
+        "Ora fine",
+        "Stato",
+        "Giustificata",
+      ],
+      ...attendanceResults.map((r) => [
+        r.student_name,
+        r.course_name ?? "",
+        r.subject_name ?? "",
+        r.lesson_date
+          ? new Date(r.lesson_date).toLocaleDateString("it-IT")
+          : "",
+        r.lesson_start_time ?? "",
+        r.lesson_end_time ?? "",
+        r.status,
+        r.justified ? "Sì" : "No",
+      ]),
+    ];
+    const attSheet = XLSX.utils.aoa_to_sheet(attData);
+    XLSX.utils.book_append_sheet(wb, attSheet, "Presenze");
+
+    const statsData = [
+      ["Numero lezioni", attendanceStats.total],
+      ["Presenze", attendanceStats.presenceCount],
+      ["Assenze", attendanceStats.absenceCount],
+      ["Assenze giustificate", attendanceStats.justifiedAbsenceCount],
+      ["Uscite anticipate", attendanceStats.earlyExitCount],
+      ["Ritardi", attendanceStats.lateCount],
+      [
+        "Presence rate (%)",
+        attendanceStats.presenceRate != null
+          ? attendanceStats.presenceRate * 100
+          : "",
+      ],
+      [
+        "Absence rate (%)",
+        attendanceStats.absenceRate != null
+          ? attendanceStats.absenceRate * 100
+          : "",
+      ],
+      [],
+      ["Distribuzione per stato"],
+      ["Stato", "Conteggio"],
+      ...attendanceStats.distributionByStatus.map((d) => [
+        d.status,
+        d.count,
+      ]),
+    ];
+    const statsSheet = XLSX.utils.aoa_to_sheet(statsData);
+    XLSX.utils.book_append_sheet(wb, statsSheet, "Statistiche presenze");
+
+    XLSX.writeFile(wb, "report-presenze.xlsx");
+  };
+
   /* ------------------- RENDER ------------------- */
 
   const hasResults = results.length > 0;
+  const hasAttendanceResults = attendanceResults.length > 0;
 
   const passFailData = [
     { name: "Superato", value: stats.passedCount },
     { name: "Non superato", value: stats.failedCount },
+  ];
+
+  const attendancePieData = [
+    { name: "Presenze", value: attendanceStats.presenceCount },
+    { name: "Assenze", value: attendanceStats.absenceCount },
   ];
 
   return (
@@ -341,22 +563,20 @@ export default function GradesReportPage() {
           <div className="flex gap-2 mt-2">
             <button
               onClick={() => setReportType("grades")}
-              className={`px-4 py-2 rounded-md text-sm ${
-                reportType === "grades"
+              className={`px-4 py-2 rounded-md text-sm ${reportType === "grades"
                   ? "bg-black text-white"
                   : "border border-gray-300"
-              }`}
+                }`}
             >
               Report Voti
             </button>
 
             <button
               onClick={() => setReportType("attendance")}
-              className={`px-4 py-2 rounded-md text-sm ${
-                reportType === "attendance"
+              className={`px-4 py-2 rounded-md text-sm ${reportType === "attendance"
                   ? "bg-black text-white"
                   : "border border-gray-300"
-              }`}
+                }`}
             >
               Report Assenze
             </button>
@@ -379,6 +599,23 @@ export default function GradesReportPage() {
             </button>
             <button
               onClick={handleExportExcel}
+              className="px-4 py-2 rounded-md bg-black text-white text-sm"
+            >
+              Esporta Excel
+            </button>
+          </div>
+        )}
+
+        {reportType === "attendance" && hasAttendanceResults && (
+          <div className="flex gap-2">
+            <button
+              onClick={handleExportPDF}
+              className="px-4 py-2 rounded-md border border-gray-300 text-sm"
+            >
+              Esporta PDF
+            </button>
+            <button
+              onClick={handleExportExcelAttendance}
               className="px-4 py-2 rounded-md bg-black text-white text-sm"
             >
               Esporta Excel
@@ -610,8 +847,8 @@ export default function GradesReportPage() {
                       <td className="p-3">
                         {r.exam_date
                           ? new Date(
-                              r.exam_date
-                            ).toLocaleDateString("it-IT")
+                            r.exam_date
+                          ).toLocaleDateString("it-IT")
                           : "—"}
                       </td>
                       <td className="p-3">{r.grade ?? "—"}</td>
@@ -645,17 +882,292 @@ export default function GradesReportPage() {
         </>
       )}
 
-      {/* ------------- PLACEHOLDER REPORT ASSENZE ------------- */}
+      {/* ------------- REPORT ASSENZE ------------- */}
       {reportType === "attendance" && (
-        <div className="bg-white shadow rounded-xl p-10 text-center text-gray-500">
-          <h2 className="text-2xl font-semibold mb-4">
-            Report Assenze
-          </h2>
-          <p>
-            davide continua qui la parte delle assenze cosi viene omogeneo.
-          </p>
-        </div>
+        <>
+          {/* FILTRI (stessa UX dei voti) */}
+          <div className="bg-white shadow rounded-xl p-4 grid grid-cols-5 gap-4">
+            <select
+              value={filters.course}
+              onChange={(e) =>
+                setFilters({ ...filters, course: e.target.value })
+              }
+              className="border p-2 rounded"
+            >
+              <option value="">Corso...</option>
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filters.subject}
+              onChange={(e) =>
+                setFilters({ ...filters, subject: e.target.value })
+              }
+              className="border p-2 rounded"
+              disabled={!subjects.length}
+            >
+              <option value="">Materia...</option>
+              {subjects.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+
+            {/* STUDENTE */}
+            <select
+              value={filters.student}
+              onChange={(e) =>
+                setFilters({ ...filters, student: e.target.value })
+              }
+              className="border p-2 rounded"
+              disabled={!students.length}
+            >
+              <option value="">Studente...</option>
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {getStudentLabel(s)}
+                </option>
+              ))}
+            </select>
+
+            <input
+              type="date"
+              className="border p-2 rounded"
+              value={filters.from}
+              onChange={(e) =>
+                setFilters({ ...filters, from: e.target.value })
+              }
+            />
+
+            <input
+              type="date"
+              className="border p-2 rounded"
+              value={filters.to}
+              onChange={(e) =>
+                setFilters({ ...filters, to: e.target.value })
+              }
+            />
+
+            <button
+              onClick={loadAttendanceReport}
+              disabled={loading}
+              className="col-span-5 bg-black text-white rounded-md py-2"
+            >
+              {loading ? "Caricamento..." : "APPLICA FILTRI"}
+            </button>
+          </div>
+
+          {/* STATISTICHE + GRAFICI PRESENZE */}
+          {hasAttendanceResults && (
+            <div className="bg-white shadow rounded-xl p-4 space-y-6">
+              <h2 className="text-xl font-semibold">
+                Statistiche presenze / assenze
+              </h2>
+
+              <div className="grid grid-cols-4 gap-4">
+                <div className="border p-4 rounded">
+                  <h3 className="font-bold text-sm text-gray-500">
+                    Numero lezioni
+                  </h3>
+                  <p className="text-2xl">{attendanceStats.total}</p>
+                </div>
+
+                <div className="border p-4 rounded">
+                  <h3 className="font-bold text-sm text-gray-500">
+                    Presenze
+                  </h3>
+                  <p className="text-2xl">
+                    {attendanceStats.presenceCount}
+                  </p>
+                </div>
+
+                <div className="border p-4 rounded">
+                  <h3 className="font-bold text-sm text-gray-500">
+                    Assenze
+                  </h3>
+                  <p className="text-2xl">
+                    {attendanceStats.absenceCount}
+                  </p>
+                </div>
+
+                <div className="border p-4 rounded">
+                  <h3 className="font-bold text-sm text-gray-500">
+                    Presence rate
+                  </h3>
+                  <p className="text-2xl">
+                    {attendanceStats.presenceRate != null
+                      ? `${(
+                        attendanceStats.presenceRate * 100
+                      ).toFixed(1)}%`
+                      : "—"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-6">
+                {/* Distribuzione per stato */}
+                <div className="border p-4 rounded">
+                  <h3 className="font-semibold mb-2">
+                    Distribuzione presenze / assenze
+                  </h3>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={attendanceStats.distributionByStatus}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="status" />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Bar dataKey="count" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Trend nel tempo */}
+                <div className="border p-4 rounded">
+                  <h3 className="font-semibold mb-2">
+                    Trend nel tempo (presence rate)
+                  </h3>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <LineChart data={attendanceStats.trendByDate}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={(value) =>
+                          new Date(value).toLocaleDateString("it-IT")
+                        }
+                      />
+                      <YAxis
+                        tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
+                      />
+                      <Tooltip
+                        labelFormatter={(value) =>
+                          new Date(value).toLocaleDateString("it-IT")
+                        }
+                        formatter={(value: any) =>
+                          `${(value * 100).toFixed(1)}%`
+                        }
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="presenceRate"
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Presenze vs Assenze */}
+                <div className="border p-4 rounded">
+                  <h3 className="font-semibold mb-2">
+                    Presenze vs Assenze
+                  </h3>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
+                      <Pie
+                        data={attendancePieData}
+                        dataKey="value"
+                        nameKey="name"
+                        outerRadius={80}
+                        label
+                      >
+                        <Cell fill="#22c55e" />
+                        <Cell fill="#ef4444" />
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TABELLONE PRESENZE */}
+          {hasAttendanceResults && (
+            <div className="bg-white shadow rounded-xl overflow-hidden">
+              <table className="w-full table-auto">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="p-3 text-left">Studente</th>
+                    <th className="p-3 text-left">Corso</th>
+                    <th className="p-3 text-left">Materia</th>
+                    <th className="p-3 text-left">Data</th>
+                    <th className="p-3 text-left">Ora inizio</th>
+                    <th className="p-3 text-left">Ora fine</th>
+                    <th className="p-3 text-left">Stato</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {attendanceResults.map((r) => (
+                    <tr key={r.id} className="border-t">
+                      <td className="p-3">{r.student_name}</td>
+                      <td className="p-3">{r.course_name ?? "—"}</td>
+                      <td className="p-3">
+                        {r.subject_name ?? "—"}
+                      </td>
+                      <td className="p-3">
+                        {r.lesson_date
+                          ? new Date(
+                            r.lesson_date
+                          ).toLocaleDateString("it-IT")
+                          : "—"}
+                      </td>
+                      <td className="p-3">
+                        {r.lesson_start_time ?? "—"}
+                      </td>
+                      <td className="p-3">
+                        {r.lesson_end_time ?? "—"}
+                      </td>
+                      <td className="p-3">
+                        {r.status === "present" && (
+                          <span className="text-green-600 text-sm">
+                            Presente
+                          </span>
+                        )}
+                        {r.status === "absent" && (
+                          <span
+                            className={`text-sm ${r.justified
+                                ? "text-amber-600"
+                                : "text-red-600"
+                              }`}
+                          >
+                            {r.justified
+                              ? "Assente giustificato"
+                              : "Assente"}
+                          </span>
+                        )}
+                        {r.status === "early_exit" && (
+                          <span className="text-blue-600 text-sm">
+                            Uscita anticipata
+                          </span>
+                        )}
+                        {r.status === "late" && (
+                          <span className="text-purple-600 text-sm">
+                            In ritardo
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!hasAttendanceResults && !loading && (
+            <p className="text-gray-500">
+              Applica un filtro e genera il report presenze per vedere i
+              risultati.
+            </p>
+          )}
+        </>
       )}
     </div>
   );
 }
+
