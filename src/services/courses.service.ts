@@ -3,19 +3,22 @@ import apiClient from '@/lib/utils/api-client';
 export interface Course {
   id: number;
   name: string;
-  duration_years: number;
+  total_hours: number;
+  max_absence_percentage: number;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateCourseDto {
   name: string;
-  duration_years: number;
+  total_hours: number;
+  max_absence_percentage?: number;
 }
 
 export interface UpdateCourseDto {
   name?: string;
-  duration_years?: number;
+  total_hours?: number;
+  max_absence_percentage?: number;
 }
 
 class CoursesService {

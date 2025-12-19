@@ -11,8 +11,23 @@ import type { Course } from '@/services/courses.service'
 
 const courseSchema = z.object({
   name: z.string().min(3, 'Il nome deve essere di almeno 3 caratteri'),
-  duration_years: z.number().min(1, 'Minimo 1 anno').max(5, 'Massimo 5 anni'),
+  total_hours: z
+    .number({
+      required_error: 'Le ore totali sono obbligatorie',
+      invalid_type_error: 'Inserisci un numero di ore valido',
+    })
+    .min(1, 'Minimo 1 ora')
+    .max(5000, 'Massimo 5000 ore'),
+
+  max_absence_percentage: z
+    .number({
+      required_error: 'La percentuale è obbligatoria',
+      invalid_type_error: 'Inserisci una percentuale valida',
+    })
+    .min(0, 'Minimo 0%')
+    .max(100, 'Massimo 100%'),
 })
+
 
 type CourseFormData = z.infer<typeof courseSchema>
 
@@ -39,11 +54,13 @@ export default function CourseForm({
     defaultValues: course
       ? {
           name: course.name,
-          duration_years: course.duration_years,
+          total_hours: course.total_hours,
+          max_absence_percentage: (course as any ).max_absence_percentage ?? 20,
         }
       : {
           name: '',
-          duration_years: 2,
+          total_hours: 1000, // valore di default, cambialo se vuoi
+          max_absence_percentage: 20,
         },
   })
 
@@ -51,7 +68,8 @@ export default function CourseForm({
     if (course) {
       reset({
         name: course.name,
-        duration_years: course.duration_years,
+        total_hours: course.total_hours,
+        max_absence_percentage: (course as any).max_absence_percentage ?? 20,
       })
     }
   }, [course, reset])
@@ -73,26 +91,59 @@ export default function CourseForm({
           )}
         </div>
 
-        {/* Durata */}
+        {/* Ore totali */}
         <div className="space-y-2">
-          <Label htmlFor="duration_years">Durata (anni) *</Label>
+          <Label htmlFor="total_hours">Ore totali del corso *</Label>
           <Input
-            id="duration_years"
+            id="total_hours"
             type="number"
             min="1"
-            max="5"
-            {...register('duration_years', { valueAsNumber: true })}
+            max="5000"
+            {...register('total_hours', { valueAsNumber: true })}
             disabled={loading}
           />
-          {errors.duration_years && (
-            <p className="text-sm text-red-500">{errors.duration_years.message}</p>
+          {errors.total_hours && (
+            <p className="text-sm text-red-500">{errors.total_hours.message}</p>
           )}
         </div>
+        {/* Percentuale max assenze */}
+        <div className="space-y-2">
+          <Label htmlFor="max_absence_percentage">Max assenze (%) *</Label>
+          <Input
+            id="max_absence_percentage"
+            type="number"
+            min="0"
+            max="100"
+            {...register('max_absence_percentage', { valueAsNumber: true })}
+            disabled={loading}
+          />
+          {errors.max_absence_percentage && (
+            <p className="text-sm text-red-500">{errors.max_absence_percentage.message}</p>
+          )}
+
+            {/* preview ore massime */}
+            <p className="text-sm text-gray-600">
+              Ore massime assenza:{" "}
+              <b>
+                {(
+                  ((Number((document.getElementById("total_hours") as HTMLInputElement)?.value) || 0) *
+                    (Number((document.getElementById("max_absence_percentage") as HTMLInputElement)?.value) || 0)) /
+                  100
+                ).toFixed(1)}
+              </b>{" "}
+              ore
+            </p>
+          </div>
       </div>
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-3 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={loading}
+        >
           Annulla
         </Button>
         <Button type="submit" disabled={loading}>

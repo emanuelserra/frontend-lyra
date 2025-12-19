@@ -1,7 +1,7 @@
 "use client";
 
 import { ProtectedRoute, PageBreadcrumb } from "@/components/shared";
-import ReportsPage from "../../components/report/ReportsPage";
+import ReportsRouter from "@/components/report/ReportsRouter";
 
 export default function Page() {
   return (
@@ -9,7 +9,7 @@ export default function Page() {
       <div className="min-h-screen bg-[var(--background)]">
         <div className="max-w-7xl mx-auto p-6">
           <PageBreadcrumb items={[{ label: "Report" }]} />
-          <ReportsPage />
+          <ReportsRouter />
         </div>
       </div>
     </ProtectedRoute>

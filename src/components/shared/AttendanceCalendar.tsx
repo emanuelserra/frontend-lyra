@@ -1,44 +1,79 @@
 "use client";
 
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faClock, faBook, faCheckCircle, faHourglassHalf } from "@fortawesome/free-solid-svg-icons";
+import {
+  faClock,
+  faBook,
+  faCheckCircle,
+  faHourglassHalf,
+} from "@fortawesome/free-solid-svg-icons";
 import { format, isSameDay } from "date-fns";
 import { it } from "date-fns/locale";
-import { toast } from "sonner";
 import { lessonsService, type Lesson } from "@/services/lessons.service";
-import { attendanceService } from "@/services/attendance.service";
+import api from "@/lib/utils/api-client";
+
+type StudentAttendanceRow = {
+  id: number;
+  lesson_date: string | null;
+  lesson_start_time: string | null;
+  lesson_end_time: string | null;
+  course_name: string | null;
+  subject_name: string | null;
+  status: "present" | "absent" | "late" | "early_exit";
+};
 
 export default function AttendanceCalendar() {
   const [selectedDate, setSelectedDate] = React.useState<Date | null>(null);
   const [open, setOpen] = React.useState(false);
+
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [todayLessons, setTodayLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // attendances dello studente loggato (endpoint: /students/me/attendance)
+  const [myAttendance, setMyAttendance] = useState<StudentAttendanceRow[]>([]);
+
   useEffect(() => {
-    fetchLessons();
+    fetchAll();
   }, []);
 
-  async function fetchLessons() {
+  async function fetchAll() {
+    setLoading(true);
     try {
-      const data = await lessonsService.getAllLessons();
-      setLessons(data);
-    } catch (error) {
-      console.error('Error fetching lessons:', error);
+      const [lessonsData, myAttRes] = await Promise.all([
+        lessonsService.getAllLessons().catch(() => [] as Lesson[]),
+        api.get<StudentAttendanceRow[]>("/students/me/attendance").catch(() => ({ data: [] as StudentAttendanceRow[] })),
+      ]);
+
+      setLessons(Array.isArray(lessonsData) ? lessonsData : []);
+      setMyAttendance(Array.isArray(myAttRes.data) ? myAttRes.data : []);
+    } finally {
+      setLoading(false);
     }
   }
+
+  // Mappa chiave "YYYY-MM-DD|HH:mm" -> status
+  const attendanceMap = useMemo(() => {
+    const map = new Map<string, StudentAttendanceRow>();
+    for (const a of myAttendance) {
+      const d = a.lesson_date ? a.lesson_date.slice(0, 10) : "";
+      const t = a.lesson_start_time ? a.lesson_start_time.slice(0, 5) : "";
+      if (!d) continue;
+      map.set(`${d}|${t}`, a);
+    }
+    return map;
+  }, [myAttendance]);
 
   const handleDayClick = (date: Date | undefined) => {
     if (!date) return;
 
-    const dayLessons = lessons.filter(lesson =>
+    const dayLessons = lessons.filter((lesson) =>
       isSameDay(new Date(lesson.lesson_date), date)
     );
 
@@ -47,22 +82,22 @@ export default function AttendanceCalendar() {
     setOpen(true);
   };
 
-  async function handleMarkAttendance(lessonId: number, status: 'present' | 'late' | 'early_exit') {
-    setLoading(true);
-    try {
-      await attendanceService.selfMarkAttendance(lessonId, status);
-      toast.success('Presenza registrata! In attesa di conferma del professore');
-      fetchLessons();
-    } catch (error: any) {
-      console.error('Error marking attendance:', error);
-      toast.error(error.response?.data?.message || 'Errore nella registrazione');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const daysWithLessons = lessons.map(l => new Date(l.lesson_date));
+  const daysWithLessons = lessons.map((l) => new Date(l.lesson_date));
   const today = new Date();
+
+  const statusLabel = (s: StudentAttendanceRow["status"]) => {
+    if (s === "present") return "Presente";
+    if (s === "late") return "In ritardo";
+    if (s === "early_exit") return "Uscita anticipata";
+    return "Assente";
+  };
+
+  const statusBadgeVariant = (s: StudentAttendanceRow["status"]) => {
+    // Badge shadcn: "default" | "secondary" | "destructive" | "outline"
+    if (s === "present") return "default";
+    if (s === "absent") return "destructive";
+    return "secondary";
+  };
 
   return (
     <>
@@ -85,68 +120,71 @@ export default function AttendanceCalendar() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>
-              Lezioni del {selectedDate && format(selectedDate, 'dd MMMM yyyy', { locale: it })}
+              Lezioni del{" "}
+              {selectedDate && format(selectedDate, "dd MMMM yyyy", { locale: it })}
             </DialogTitle>
           </DialogHeader>
 
-          {todayLessons.length > 0 ? (
+          {loading ? (
+            <p className="text-center text-gray-500 py-8">Caricamento...</p>
+          ) : todayLessons.length > 0 ? (
             <div className="space-y-3 mt-4">
-              {todayLessons.map(lesson => {
-                const isToday = isSameDay(new Date(lesson.lesson_date), today);
-                const attendance = (lesson as any).attendances?.[0];
+              {todayLessons.map((lesson) => {
+                const lessonDateKey = new Date(lesson.lesson_date)
+                  .toISOString()
+                  .slice(0, 10);
+
+                const startKey = lesson.start_time
+                  ? lesson.start_time.slice(0, 5)
+                  : "";
+
+                const a = attendanceMap.get(`${lessonDateKey}|${startKey}`) ?? null;
 
                 return (
                   <Card key={lesson.id} className="p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <FontAwesomeIcon icon={faBook} className="w-4 h-4 text-blue-500" />
-                          <span className="font-semibold">{lesson.subject?.name}</span>
+                          <FontAwesomeIcon
+                            icon={faBook}
+                            className="w-4 h-4 text-blue-500"
+                          />
+                          <span className="font-semibold">
+                            {lesson.subject?.name ?? "—"}
+                          </span>
                         </div>
+
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <FontAwesomeIcon icon={faClock} className="w-4 h-4" />
-                          <span>{lesson.start_time} - {lesson.end_time}</span>
+                          <span>
+                            {lesson.start_time} - {lesson.end_time}
+                          </span>
                         </div>
+
                         <p className="text-sm text-gray-500 mt-1">
-                          Prof. {lesson.professor?.user?.first_name} {lesson.professor?.user?.last_name}
+                          Prof. {lesson.professor?.user?.first_name}{" "}
+                          {lesson.professor?.user?.last_name}
                         </p>
                       </div>
 
-                      <div className="flex flex-col gap-2">
-                        {attendance ? (
+                      <div className="flex flex-col items-end gap-2">
+                        {a ? (
                           <>
-                            <Badge variant={attendance.confirmed ? "default" : "secondary"}>
+                            {/* Qui non abbiamo "confirmed" nel tuo endpoint student/me/attendance,
+                                quindi MOSTRO SOLO lo stato. */}
+                            <Badge variant={statusBadgeVariant(a.status) as any}>
+                              {statusLabel(a.status)}
+                            </Badge>
+
+                            {/* Se un domani aggiungi confirmed, puoi riattivare questo */}
+                            <Badge variant="outline">
                               <FontAwesomeIcon
-                                icon={attendance.confirmed ? faCheckCircle : faHourglassHalf}
+                                icon={faCheckCircle}
                                 className="w-3 h-3 mr-1"
                               />
-                              {attendance.confirmed ? 'Confermata' : 'In attesa'}
-                            </Badge>
-                            <Badge variant="outline">
-                              {attendance.status === 'present' && 'Presente'}
-                              {attendance.status === 'late' && 'In ritardo'}
-                              {attendance.status === 'early_exit' && 'Uscita anticipata'}
-                              {attendance.status === 'absent' && 'Assente'}
+                              Registrata
                             </Badge>
                           </>
-                        ) : isToday ? (
-                          <div className="flex flex-col gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleMarkAttendance(lesson.id, 'present')}
-                              disabled={loading}
-                            >
-                              Presente
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleMarkAttendance(lesson.id, 'late')}
-                              disabled={loading}
-                            >
-                              In ritardo
-                            </Button>
-                          </div>
                         ) : (
                           <Badge variant="secondary">Non registrata</Badge>
                         )}

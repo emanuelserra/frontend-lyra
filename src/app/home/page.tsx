@@ -53,7 +53,7 @@ function getQuickActionsForRole(role: UserRole): QuickAction[] {
     case 'student':
       return [
         { label: 'Orario Lezioni', icon: faCalendarDays, href: '/lessons', color: 'blue' },
-        { label: 'I Miei Voti', icon: faAward, href: '/exams', color: 'green' },
+        { label: 'I Miei Voti', icon: faAward, href: '/reports', color: 'green' },
         { label: 'Presenze', icon: faEye, href: '/attendances', color: 'orange' },
       ]
     default:

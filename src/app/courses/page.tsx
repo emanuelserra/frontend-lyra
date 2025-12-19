@@ -120,41 +120,44 @@ function CoursesPage() {
     setEditingCourse(undefined)
   }
 
-  const columns: Column<CourseWithStats>[] = [
-    {
-      header: 'Nome Corso',
-      accessor: 'name',
-    },
-    {
-      header: 'Durata',
-      accessor: row => (
-        <Badge variant="default">
-          {row.duration_years} {row.duration_years === 1 ? 'anno' : 'anni'}
-        </Badge>
-      ),
-    },
-    {
-      header: 'N° Studenti',
-      accessor: row => (
-        <Badge variant="secondary">
-          {row.studentsCount ?? 0} studenti
-        </Badge>
-      ),
-    },
-    {
-      header: 'N° Materie',
-      accessor: row => (
-        <Badge variant="secondary">
-          {row.subjectsCount ?? 0} materie
-        </Badge>
-      ),
-    },
-    {
-      header: 'Creato il',
-      accessor: row => new Date(row.created_at).toLocaleDateString('it-IT'),
-    },
-  ]
+const columns: Column<CourseWithStats>[] = [
+  {
+    header: 'Nome Corso',
+    accessor: 'name',
+  },
+  {
+  header: 'Durata / Max assenze',
+  accessor: row => (
+    <div className="flex flex-col gap-1">
+      <Badge variant="default">{row.total_hours} ore</Badge>
+      <Badge variant="secondary">
+        Max assenze: {(row as any).max_absence_percentage ?? 20}%
+      </Badge>
+    </div>
+  ),
+},
 
+  {
+    header: 'N° Studenti',
+    accessor: row => (
+      <Badge variant="secondary">
+        {row.studentsCount ?? 0} studenti
+      </Badge>
+    ),
+  },
+  {
+    header: 'N° Materie',
+    accessor: row => (
+      <Badge variant="secondary">
+        {row.subjectsCount ?? 0} materie
+      </Badge>
+    ),
+  },
+  {
+    header: 'Creato il',
+    accessor: row => new Date(row.created_at).toLocaleDateString('it-IT'),
+  },
+]
   const isAdmin = userRole === 'admin'
 
   return (
